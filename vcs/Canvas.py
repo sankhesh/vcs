@@ -127,7 +127,10 @@ def _determine_arg_list(g_name, actual_args):
             argstring.append(args[i])
         else:
             try:
-                possible_slab = cdms2.asVariable(args[i], 0)
+                if vcs.has_cdms:
+                    possible_slab = cdms2.asVariable(args[i], 0)
+                else:
+                    possible_slab = numpy.ma.array(args[i])
                 if hasattr(possible_slab, 'iscontiguous'):
                     if not possible_slab.iscontiguous():
                         # this seems to loose the id...
@@ -579,10 +582,14 @@ class Canvas(object):
         # Create copies of domain and attributes
         variable = keyargs.get('variable')
         if variable is not None:
-            origv = MV2.array(variable)
-        tvdomain = origv.getDomain()
-        attrs = copy.copy(origv.attributes)
-        axislist = list(map(lambda x: x[0].clone(), tvdomain))
+            if vcs.has_cdms:
+                origv = MV2.array(variable)
+            else:
+                origv = numpy.ma.array(variable)
+        if vcs.has_cdms:
+            tvdomain = origv.getDomain()
+            attrs = copy.copy(origv.attributes)
+            axislist = list(map(lambda x: x[0].clone(), tvdomain))
 
         # Map keywords to dimension indices
         try:
@@ -645,12 +652,15 @@ class Canvas(object):
                 axis.id = axis.name = arg
 
         # Create the internal tv
-        tv = cdms2.createVariable(
-            origv,
-            copy=0,
-            axes=axislist,
-            attributes=attrs)
-        grid = tv.getGrid()
+        if vcs.has_cdms:
+            tv = cdms2.createVariable(
+                origv,
+                copy=0,
+                axes=axislist,
+                attributes=attrs)
+            grid = tv.getGrid()
+        else:
+            tv = origv
 
         isgridded = (grid is not None)
 
@@ -732,7 +742,11 @@ class Canvas(object):
         _process_keyword(tv, 'source', 'file_comment', keyargs)
         _process_keyword(tv, 'time', 'hms', keyargs)
         _process_keyword(tv, 'title', 'long_name', keyargs)
-        _process_keyword(tv, 'name', 'name', keyargs, default=tv.id)
+        if vcs.has_cdms:
+            defaultId = tv.id
+        else:
+            defaultId = "variable"
+        _process_keyword(tv, 'name', 'name', keyargs, default=defaultId)
         tim = keyargs.get('time')
         if tim is not None:
             if isinstance(tim, (str, unicode)):
@@ -744,7 +758,7 @@ class Canvas(object):
         _process_keyword(tv, 'date', 'ymd', keyargs)
         # If date has still not been set, try to get it from the first
         # time value if present
-        if not hasattr(tv, 'user_date') and not hasattr(
+        if vcs.has_cdms and not hasattr(tv, 'user_date') and not hasattr(
                 tv, 'date') and not hasattr(tv, 'time'):
             change_date_time(tv, 0)
 
@@ -2576,8 +2590,12 @@ or an integer value from 0-255, or an RGB/RGBA tuple/list (e.g. (0,100,0), (100,
                 raise vcsError('Multiple Definition for ' + str(k))
             else:
                 keyargs[k] = xtrakw[k]
-        assert arglist[0] is None or cdms2.isVariable(arglist[0])
-        assert arglist[1] is None or cdms2.isVariable(arglist[1])
+        if vcs.has_cdms:
+            assert arglist[0] is None or cdms2.isVariable(arglist[0])
+            assert arglist[1] is None or cdms2.isVariable(arglist[1])
+        else:
+            assert arglist[0] is None or isinstance(arglist[0],numpy.ndarray)
+            assert arglist[1] is None or isinstance(arglist[1],numpy.ndarray)
         assert isinstance(arglist[2], str)
         if not isinstance(arglist[3], vcsaddons.core.VCSaddon):
             assert isinstance(arglist[3], str)
@@ -2615,22 +2633,21 @@ or an integer value from 0-255, or an RGB/RGBA tuple/list (e.g. (0,100,0), (100,
                 doratio = '0'
 
         # Check for curvilinear grids, and wrap options !
-        if arglist[0] is not None:
+        if arglist[0] is not None and vcs.has_cdms:
             inGrid = arglist[0].getGrid()
         else:
             inGrid = None
-        if arglist[0] is not None and arglist[
-                1] is None and arglist[3] == "meshfill":
-            if isinstance(
-                    inGrid, (cdms2.gengrid.AbstractGenericGrid, cdms2.hgrid.AbstractCurveGrid)):
+        if arglist[0] is not None and arglist[ 1] is None and arglist[3] == "meshfill":
+            if vcs.has_cdms and isinstance(inGrid,
+                    (cdms2.gengrid.AbstractGenericGrid, cdms2.hgrid.AbstractCurveGrid)):
                 g = self.getmeshfill(arglist[4])
                 if 'wrap' not in keyargs and g.wrap == [0., 0.]:
                     keyargs['wrap'] = [0., 360.]
             else:
-                if arglist[0].rank < 2:
+                if arglist[0].ndim < 2:
                     arglist[3] = 'yxvsx'
                     arglist[4] = 'default'
-                else:
+                elif vcs.has_cdms:
                     xs = arglist[0].getAxis(-1)
                     ys = arglist[0].getAxis(-2)
                     if xs.isLongitude() and ys.isLatitude() and isinstance(
@@ -2674,8 +2691,15 @@ or an integer value from 0-255, or an RGB/RGBA tuple/list (e.g. (0,100,0), (100,
                                     'ext_2',
                                     'missing']:
                             setattr(copy_mthd, att, getattr(m, att))
+                else:
+                    arglist[3] = 'boxfill'
+                    copy_mthd = vcs.creategraphicsmethod(
+                        'boxfill',
+                        'default')
+                    check_mthd = copy_mthd
         elif arglist[0] is not None \
-                and arglist[0].rank() < 2 \
+                and vcs.has_cdms \
+                and arglist[0].ndim < 2 \
                 and arglist[3] in ['boxfill', 'default'] \
                 and not isinstance(inGrid, cdms2.gengrid.AbstractGenericGrid):
             arglist[3] = '1d'
@@ -3114,6 +3138,7 @@ or an integer value from 0-255, or an RGB/RGBA tuple/list (e.g. (0,100,0), (100,
 # \
 
         if (hasattr(check_mthd, 'datawc_x1') and hasattr(check_mthd, 'datawc_x2')) \
+                and vcs.has_cdms \
                 and arglist[0].getAxis(-1).isTime() \
                 and check_mthd.xticlabels1 == '*' \
                 and check_mthd.xticlabels2 == '*' \
@@ -3233,6 +3258,7 @@ or an integer value from 0-255, or an RGB/RGBA tuple/list (e.g. (0,100,0), (100,
                 pass
 
         if (hasattr(check_mthd, 'datawc_y1') and hasattr(check_mthd, 'datawc_y2'))\
+                and vcs.has_cdms \
                 and check_mthd.yticlabels1 == '*' \
                 and check_mthd.yticlabels2 == '*' \
                 and check_mthd.ymtics1 in ['*', ''] \
@@ -3831,6 +3857,7 @@ or an integer value from 0-255, or an RGB/RGBA tuple/list (e.g. (0,100,0), (100,
                         x=self,
                         **keyargs)
             else:
+                print "ALIST:",arglist
                 returned_kargs = self.backend.plot(*arglist, **keyargs)
                 if not keyargs.get("donotstoredisplay", False):
                     dname = keyargs.get("display_name")
