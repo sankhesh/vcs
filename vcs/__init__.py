@@ -48,6 +48,13 @@ model for defining a plot, that is decomposed into three parts:
 
 """
 
+import warnings
+try:
+    import cdms  # noqa
+    has_cdms2 = True
+except:
+    warnings.warn("vcs could not load cdms2, many features might be missing")
+    has_cdms = False
 _doValidation = True
 next_canvas_id = 1
 import cdat_info  # noqa

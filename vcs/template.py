@@ -35,7 +35,8 @@ from Pboxeslines import *  # noqa
 from Plegend import *  # noqa
 from Pdata import *  # noqa
 import inspect
-import cdutil
+if vcs.has_cdms:
+    import cdutil
 from projection import round_projections
 from projection import elliptical_projections
 from xmldocs import template_script

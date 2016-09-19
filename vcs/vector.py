@@ -23,7 +23,8 @@
 #
 import vcs
 import VCS_validation_functions
-import cdtime
+if vcs.has_cdms:
+    import cdtime
 from xmldocs import vector_script
 
 

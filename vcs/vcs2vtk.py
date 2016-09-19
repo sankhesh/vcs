@@ -7,7 +7,8 @@ import os
 import math
 import meshfill
 from vtk.util import numpy_support as VN
-import cdms2
+if vcs.has_cdms:
+    import cdms2
 import warnings
 from projection import round_projections, no_over_proj4_parameter_projections
 from vcsvtk import fillareautils

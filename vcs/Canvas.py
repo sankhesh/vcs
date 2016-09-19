@@ -7,9 +7,7 @@ Canvas
 """
 import warnings
 import numpy.ma
-import MV2
 import numpy
-import cdutil
 from queries import *  # noqa
 import boxfill
 import isofill
@@ -28,15 +26,12 @@ from VTKPlots import VTKVCSBackend
 from weakref import WeakSet, WeakKeyDictionary
 
 from error import vcsError
-import cdms2
 import copy
-import cdtime
 import vcs
 import os
 import re
 import sys
 import random
-from cdms2.grid import AbstractRectGrid
 import shutil
 import subprocess
 import inspect
@@ -50,6 +45,12 @@ import vcsaddons  # noqa
 import vcs.manageElements  # noqa
 import configurator  # noqa
 from projection import no_deformation_projections  # noqa
+if vcs.has_cdms:
+    import MV2
+    import cdutil
+    import cdms2
+    import cdtime
+    from cdms2.grid import AbstractRectGrid
 
 # Python < 3 DeprecationWarning ignored by default
 warnings.simplefilter('default')

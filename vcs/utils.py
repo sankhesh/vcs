@@ -1,6 +1,11 @@
 # Adapted for numpy/ma/cdms2 by convertcdms.py
 import numpy
-import cdtime
+try:
+    import cdtime
+    import cdms2
+    has_cdms = True
+except:
+    has_cdms = False
 import warnings
 import vcs
 import boxfill
@@ -20,7 +25,6 @@ import colormap
 import json
 import os
 import tempfile
-import cdms2
 import genutil
 import vtk
 
@@ -1302,132 +1306,132 @@ def getcolors(levs, colors=None, split=1, white="white"):
         col[0] = colors[0]
     return col
 
+if vcs.has_cdms:
+    def generate_time_labels(d1, d2, units, calendar=cdtime.DefaultCalendar):
+        """
+        Generates a dictionary of time labels for an interval of time,
+        in a user defined units system.
 
-def generate_time_labels(d1, d2, units, calendar=cdtime.DefaultCalendar):
-    """
-    Generates a dictionary of time labels for an interval of time,
-    in a user defined units system.
+        :Example:
 
-    :Example:
+        ::
 
-    ::
-
-        # Two ways to generate a dictionary of time labels
-        #   for the year 2000 in units of 'days since 1800' :
-        lbls = generate_time_labels(cdtime.reltime(0,'months since 2000'),
-                                    cdtime.reltime(12,'months since 2000'),
-                                    'days since 1800',)
-        lbls = generate_time_labels(cdtime.reltime(0,'months since 2000'),
-                                    cdtime.comptime(2001),
-                                    'days since 1800',)
-        # Generate a dictionary of time labels for the year 2000 in units of 'months since 2000'
-        lbls = generate_time_labels(0, 12, 'months since 2000', )
+            # Two ways to generate a dictionary of time labels
+            #   for the year 2000 in units of 'days since 1800' :
+            lbls = generate_time_labels(cdtime.reltime(0,'months since 2000'),
+                                        cdtime.reltime(12,'months since 2000'),
+                                        'days since 1800',)
+            lbls = generate_time_labels(cdtime.reltime(0,'months since 2000'),
+                                        cdtime.comptime(2001),
+                                        'days since 1800',)
+            # Generate a dictionary of time labels for the year 2000 in units of 'months since 2000'
+            lbls = generate_time_labels(0, 12, 'months since 2000', )
 
 
-    :param d1: The beginning of the time interval to be labelled. Expects a cdtime object.
-                Can also take int, long, or float,
-                which will be used to create a cdtime object with the given units parameter.
-    :type d1: cdtime object, int, long, float
+        :param d1: The beginning of the time interval to be labelled. Expects a cdtime object.
+                    Can also take int, long, or float,
+                    which will be used to create a cdtime object with the given units parameter.
+        :type d1: cdtime object, int, long, float
 
-    :param d2: The end of the time interval to be labelled. Expects a cdtime object.
-                Can also take int, long, or float,
-                which will be used to create a cdtime object with the given units parameter.
-    :type d2: cdtime object, int, long, float
+        :param d2: The end of the time interval to be labelled. Expects a cdtime object.
+                    Can also take int, long, or float,
+                    which will be used to create a cdtime object with the given units parameter.
+        :type d2: cdtime object, int, long, float
 
-    :param units: String with the format '[time_unit] since [date]'.
-    :type units: str
+        :param units: String with the format '[time_unit] since [date]'.
+        :type units: str
 
-    :param calendar: A cdtime calendar,
-    :type calendar:
+        :param calendar: A cdtime calendar,
+        :type calendar:
 
-    :returns: Dictionary of time labels over the given time interval
-    :rtype: dict
+        :returns: Dictionary of time labels over the given time interval
+        :rtype: dict
 
-    """
-    if isinstance(d1, (int, long, float)):
-        d1 = cdtime.reltime(d1, units)
-    if isinstance(d2, (int, long, float)):
-        d2 = cdtime.reltime(d2, units)
-    d1r = d1.torel(units, calendar)
-    d2r = d2.torel(units, calendar)
-    d1, d2 = minmax(d1r.value, d2r.value)
-    u = units.split('since')[0].strip().lower()
-    dic = {}
-    if u in ['month', 'months']:
-        delta = (d2 - d1) * 30
-    elif u in ['year', 'years']:
-        delta = (d2 - d1) * 365
-    elif u in ['hours', 'hour']:
-        delta = (d2 - d1) / 24.
-    elif u in ['minute', 'minutes']:
-        delta = (d2 - d1) / 24. / 60.
-    elif u in ['second', 'seconds']:
-        delta = (d2 - d1) / 24. / 60. / 60.
-    else:
-        delta = d2 - d1
-    if delta < .042:  # less than 1 hour
-        levs = mkscale(d1, d2)
-        for l in levs:
-            dic[l] = str(cdtime.reltime(l, units).tocomp(calendar))
-    elif delta < 1:  # Less than a day put a label every hours
-        d1 = d1r.torel('hours since 2000').value
-        d2 = d2r.torel('hours since 2000').value
-        d1, d2 = minmax(d1, d2)
-        levs = mkscale(d1, d2)
-        for l in levs:
-            t = cdtime.reltime(l, 'hours since 2000').tocomp(calendar)
-            if t.minute > 30:
-                t = t.add(1, cdtime.Hour)
-            t.minute = 0
-            t.second = 0
-            tr = t.torel(units, calendar)
-            dic[tr.value] = str(t).split(':')[0]
-    elif delta < 90:  # Less than 3 month put label every day
-        d1 = d1r.torel('days since 2000').value
-        d2 = d2r.torel('days since 2000').value
-        d1, d2 = minmax(d1, d2)
-        levs = mkscale(d1, d2)
-        for l in levs:
-            t = cdtime.reltime(l, 'days since 2000').tocomp(calendar)
-            if t.hour > 12:
-                t = t.add(1, cdtime.Day)
-            t.hour = 0
-            t.minute = 0
-            t.second = 0
-            tr = t.torel(units, calendar)
-            dic[tr.value] = str(t).split(' ')[0]
-    elif delta < 800:  # ~ Less than 24 month put label every month
-        d1 = d1r.torel('months since 2000').value
-        d2 = d2r.torel('months since 2000').value
-        d1, d2 = minmax(d1, d2)
-        levs = mkscale(d1, d2)
-        for l in levs:
-            t = cdtime.reltime(l, 'months since 2000').tocomp(calendar)
-            if t.day > 15:
-                t = t.add(1, cdtime.Month)
-            t.day = 1
-            t.hour = 0
-            t.minute = 0
-            t.second = 0
-            tr = t.torel(units, calendar)
-            dic[tr.value] = '-'.join(str(t).split('-')[:2])
-    else:  # ok lots of years, let auto decide but always puts at Jan first
-        d1 = d1r.torel('years since 2000').value
-        d2 = d2r.torel('years since 2000').value
-        d1, d2 = minmax(d1, d2)
-        levs = mkscale(d1, d2)
-        for l in levs:
-            t = cdtime.reltime(l, 'years since 2000').tocomp(calendar)
-            if t.month > 6:
-                t = t.add(1, cdtime.Year)
-            t.month = 1
-            t.day = 1
-            t.hour = 0
-            t.minute = 0
-            t.second = 0
-            tr = t.torel(units, calendar)
-            dic[tr.value] = str(t).split('-')[0]
-    return dic
+        """
+        if isinstance(d1, (int, long, float)):
+            d1 = cdtime.reltime(d1, units)
+        if isinstance(d2, (int, long, float)):
+            d2 = cdtime.reltime(d2, units)
+        d1r = d1.torel(units, calendar)
+        d2r = d2.torel(units, calendar)
+        d1, d2 = minmax(d1r.value, d2r.value)
+        u = units.split('since')[0].strip().lower()
+        dic = {}
+        if u in ['month', 'months']:
+            delta = (d2 - d1) * 30
+        elif u in ['year', 'years']:
+            delta = (d2 - d1) * 365
+        elif u in ['hours', 'hour']:
+            delta = (d2 - d1) / 24.
+        elif u in ['minute', 'minutes']:
+            delta = (d2 - d1) / 24. / 60.
+        elif u in ['second', 'seconds']:
+            delta = (d2 - d1) / 24. / 60. / 60.
+        else:
+            delta = d2 - d1
+        if delta < .042:  # less than 1 hour
+            levs = mkscale(d1, d2)
+            for l in levs:
+                dic[l] = str(cdtime.reltime(l, units).tocomp(calendar))
+        elif delta < 1:  # Less than a day put a label every hours
+            d1 = d1r.torel('hours since 2000').value
+            d2 = d2r.torel('hours since 2000').value
+            d1, d2 = minmax(d1, d2)
+            levs = mkscale(d1, d2)
+            for l in levs:
+                t = cdtime.reltime(l, 'hours since 2000').tocomp(calendar)
+                if t.minute > 30:
+                    t = t.add(1, cdtime.Hour)
+                t.minute = 0
+                t.second = 0
+                tr = t.torel(units, calendar)
+                dic[tr.value] = str(t).split(':')[0]
+        elif delta < 90:  # Less than 3 month put label every day
+            d1 = d1r.torel('days since 2000').value
+            d2 = d2r.torel('days since 2000').value
+            d1, d2 = minmax(d1, d2)
+            levs = mkscale(d1, d2)
+            for l in levs:
+                t = cdtime.reltime(l, 'days since 2000').tocomp(calendar)
+                if t.hour > 12:
+                    t = t.add(1, cdtime.Day)
+                t.hour = 0
+                t.minute = 0
+                t.second = 0
+                tr = t.torel(units, calendar)
+                dic[tr.value] = str(t).split(' ')[0]
+        elif delta < 800:  # ~ Less than 24 month put label every month
+            d1 = d1r.torel('months since 2000').value
+            d2 = d2r.torel('months since 2000').value
+            d1, d2 = minmax(d1, d2)
+            levs = mkscale(d1, d2)
+            for l in levs:
+                t = cdtime.reltime(l, 'months since 2000').tocomp(calendar)
+                if t.day > 15:
+                    t = t.add(1, cdtime.Month)
+                t.day = 1
+                t.hour = 0
+                t.minute = 0
+                t.second = 0
+                tr = t.torel(units, calendar)
+                dic[tr.value] = '-'.join(str(t).split('-')[:2])
+        else:  # ok lots of years, let auto decide but always puts at Jan first
+            d1 = d1r.torel('years since 2000').value
+            d2 = d2r.torel('years since 2000').value
+            d1, d2 = minmax(d1, d2)
+            levs = mkscale(d1, d2)
+            for l in levs:
+                t = cdtime.reltime(l, 'years since 2000').tocomp(calendar)
+                if t.month > 6:
+                    t = t.add(1, cdtime.Year)
+                t.month = 1
+                t.day = 1
+                t.hour = 0
+                t.minute = 0
+                t.second = 0
+                tr = t.torel(units, calendar)
+                dic[tr.value] = str(t).split('-')[0]
+        return dic
 
 
 def prettifyAxisLabels(ticks, axis):

@@ -15,8 +15,9 @@
 
 import VCS_validation_functions
 import xmldocs
-import cdtime
 import vcs
+if vcs.has_cdms:
+    import cdtime
 
 
 def load(nm, json_dict={}):

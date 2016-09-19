@@ -1,4 +1,3 @@
-import cdutil
 import warnings
 import vtk
 import vcs
@@ -7,8 +6,10 @@ import numpy
 import os
 import traceback
 import sys
-import cdms2
-import cdtime
+if vcs.has_cdms:
+    import cdms2
+    import cdutil
+    import cdtime
 import inspect
 import VTKAnimate
 import vcsvtk

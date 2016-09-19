@@ -1,6 +1,7 @@
 # Adapted for numpy/ma/cdms2 by convertcdms.py
 import vcs
-import cdtime
+if vcs.has_cdms:
+    import cdtime
 import numpy
 import genutil
 
@@ -1221,6 +1222,8 @@ def checkProjParameters(self, name, value):
 
 def checkCalendar(self, name, value):
     checkName(self, name, value)
+    if not vcs.has_cdms:
+        return None
     if not isinstance(value, (int, long)):
         checkedRaise(
             self,
@@ -1243,6 +1246,8 @@ def checkCalendar(self, name, value):
 
 
 def checkTimeUnits(self, name, value):
+    if not vcs.has_cdms:
+        return None
     checkName(self, name, value)
     if isinstance(value, unicode):
         value = str(value)

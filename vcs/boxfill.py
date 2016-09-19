@@ -21,7 +21,8 @@
 #                                                                             #
 ###############################################################################
 import vcs
-import cdtime
+if vcs.has_cdms:
+    import cdtime
 import VCS_validation_functions
 import xmldocs
 import numpy
@@ -496,7 +497,10 @@ class Gfb(object):
             self._color_2 = 255
             self._boxfill_type = "linear"
             self._datawc_timeunits = 'days since 2000'
-            self._datawc_calendar = cdtime.DefaultCalendar
+            if vcs.has_cdms:
+                self._datawc_calendar = cdtime.DefaultCalendar
+            else:
+                self._datawc_calendar = None
             self._legend = None
             self._colormap = None
         else:
