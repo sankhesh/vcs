@@ -141,7 +141,8 @@ class IsofillPipeline(Pipeline2D):
                                                                fillareaindex=tmpIndices[ct],
                                                                fillareacolors=c,
                                                                fillareaopacity=tmpOpacities[ct],
-                                                               size=viewsize)
+                                                               size=viewsize,
+                                                               renderer=dataset_renderer)
 
                 if patact is not None:
                     patternActors.append(patact)
