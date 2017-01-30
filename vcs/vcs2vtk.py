@@ -1396,12 +1396,6 @@ def prepFillarea(renWin, farea, cmap=None):
                                                         opacity,
                                                         renWin.GetSize())
             if act is not None:
-                if (st == "pattern" and opacity > 0) or st == "hatch":
-                    m = vtk.vtkPolyDataMapper()
-                    m.SetInputData(pd)
-                    a = vtk.vtkActor()
-                    a.SetMapper(m)
-                    actors.append((a, geo))
                 actors.append((act, geo))
 
     # Transform points
