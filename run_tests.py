@@ -22,7 +22,8 @@ parser.add_argument("-H", "--html", action="store_true",
 parser.add_argument("-p", "--package", action="store_true",
                     help="package test results")
 parser.add_argument("-D", "--dropbox", action="store_true",
-                    help="upload packaged test results to dropbox (access token must be stored in the envirnoment variable DROPBOX_TOKEN)")
+                    help="upload packaged test results to dropbox "
+                         "(access token must be stored in the envirnoment variable DROPBOX_TOKEN)")
 parser.add_argument(
     "-c",
     "--coverage",
@@ -106,7 +107,7 @@ def findDiffFiles(log):
                         file2 = log[k].split()[2]
                     except:
                         file2 = log[k].split()[1][:-1]+log[j].split()[0]
-                        print "+++++++++++++++++++++++++",file2
+                        print "+++++++++++++++++++++++++", file2
             if log[j].find("Saving image diff") > -1:
                 diff = log[j].split()[-1]
                 # break
@@ -187,8 +188,8 @@ if len(args.tests) == 0:
 else:
     names = set(args.tests)
 
-if args.failed_only and os.path.exists(os.path.join("tests",".last_failure")):
-    f = open(os.path.join("tests",".last_failure"))
+if args.failed_only and os.path.exists(os.path.join("tests", ".last_failure")):
+    f = open(os.path.join("tests", ".last_failure"))
     failed = set(eval(f.read().strip()))
     f.close()
     new_names = []
@@ -200,12 +201,14 @@ if args.failed_only and os.path.exists(os.path.join("tests",".last_failure")):
 if args.verbosity > 1:
     print("Names:", names)
 
-if len(names)==0:
+if len(names) == 0:
     print "No tests to run"
     sys.exit(0)
 
 # Make sure we have sample data
-cdat_info.download_sample_data_files(os.path.join(sys.prefix,"share","vcs","test_data_files.txt"),cdat_info.get_sampledata_path())
+cdat_info.download_sample_data_files(os.path.join(sys.prefix, "share",
+                                                  "vcs", "test_data_files.txt"),
+                                     cdat_info.get_sampledata_path())
 
 p = multiprocessing.Pool(args.cpus)
 outs = p.map(run_nose, names)
@@ -216,7 +219,7 @@ for d in outs:
     nm = d.keys()[0]
     if d[nm]["result"] != 0:
         failed.append(nm)
-f = open(os.path.join("tests",".last_failure"),"w")
+f = open(os.path.join("tests", ".last_failure"), "w")
 f.write(repr(failed))
 f.close()
 
@@ -297,18 +300,18 @@ if args.html or args.package or args.dropbox:
 
 if args.package or args.dropbox:
     import tarfile
-    tnm = "results_%s_%s_%s.tar.bz2" % (os.uname()[0],os.uname()[1],time.strftime("%Y-%m-%d_%H:%M"))
+    tnm = "results_%s_%s_%s.tar.bz2" % (os.uname()[0], os.uname()[1], time.strftime("%Y-%m-%d_%H:%M"))
     t = tarfile.open(tnm, "w:bz2")
     t.add("tests_html")
     t.add("tests_html")
     t.close()
     if args.verbosity > 0:
         print "Packaged Result Info in:", tnm
-if args.dropbox: 
+if args.dropbox:
     import dropbox
-    dbx = dropbox.Dropbox(os.environ.get("DROPBOX_TOKEN",""))
-    f=open(tnm,"rb")
-    dbx.files_upload(f.read(),"/%s"%tnm)
+    dbx = dropbox.Dropbox(os.environ.get("DROPBOX_TOKEN", ""))
+    f = open(tnm, "rb")
+    dbx.files_upload(f.read(), "/%s" % tnm)
     f.close()
 
 
