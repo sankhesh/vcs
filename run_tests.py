@@ -139,7 +139,7 @@ def run_command(command, join_stderr=True):
 
 
 def run_nose(test_name):
-    opts = []
+    opts = ["--with-xunit"]
     if args.coverage:
         opts += ["--with-coverage"]
     command = ["nosetests", ] + opts + ["-s", test_name]
